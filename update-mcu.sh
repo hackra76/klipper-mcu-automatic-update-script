@@ -1,25 +1,35 @@
 #!/bin/bash
 set -e
-# VLOŽ SEM SVOJU PRESNÚ CESTU K MCU
+
+# ENTER YOUR EXACT MCU PATH HERE
 MCU_PATH="/dev/serial/by-id/usb-Klipper_lpc1769_12345-if00"
 BOARD_TYPE="btt-skr-turbo-v1.4"
 
-echo "🛑 Zastavujem Klipper..."
+echo "🔍 Checking MCU connection..."
+if [ ! -e "$MCU_PATH" ]; then
+    echo "❌ Error: MCU not found at $MCU_PATH!"
+    echo "Check the USB cable or printer power."
+    exit 1
+fi
+
+echo "🛑 Stopping Klipper..."
 sudo systemctl stop klipper
 
-echo "🧹 Čistím predchádzajúci build..."
+echo "⬇️ Pulling the latest Klipper updates..."
 cd ~/klipper
+git pull
+
+echo "🧹 Cleaning previous build..."
 make clean
 
-echo "⚙️ Kompilujem nový firmvér..."
-# Pi Zero 2 W má 4 jadrá, parameter -j4 kompiláciu výrazne urýchli
-make -j4
+echo "⚙️ Compiling new firmware..."
+# Auto-detecting the number of CPU cores for maximum speed
+make -j$(nproc)
 
-echo "💾 Flashujem firmvér na SD kartu v SKR 1.4..."
-# Tento natívny Klipper skript robí to isté čo KIAUH
+echo "💾 Flashing firmware to the SD card..."
 ./scripts/flash-sdcard.sh $MCU_PATH $BOARD_TYPE
 
-echo "🚀 Spúšťam Klipper..."
+echo "🚀 Starting Klipper..."
 sudo systemctl start klipper
 
-echo "✅ Aktualizácia MCU dokončená!"
+echo "✅ MCU update completed!"
