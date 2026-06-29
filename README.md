@@ -5,6 +5,7 @@ A simple, fast, and automated bash script to compile and flash Klipper firmware 
 Designed to be universal, this script automatically detects your CPU cores for maximum compilation speed and pulls the latest Klipper updates before building.
 
 ## 🌟 Features
+
 - **Auto-Update:** Runs `git pull` to ensure you are compiling the freshest Klipper source.
 - **Safety First:** Verifies your `.config` file exists and stops the Klipper service before proceeding.
 - **Clean build:** Removes old compiled files to prevent conflicts (`make clean`).
@@ -12,6 +13,7 @@ Designed to be universal, this script automatically detects your CPU cores for m
 - **Native flashing:** Uses Klipper's official `flash-sdcard.sh` script to flash the board directly.
 
 ## ⚠️ Prerequisites
+
 Before running this script for the first time, you **must** generate a `.config` file for your specific microcontroller.
 
 1. SSH into your Raspberry Pi.
@@ -29,7 +31,7 @@ Clone the repository:
 
 Bash
 cd ~
-git clone [https://github.com/hackra76/klipper-mcu-automatic-update-script.git](https://github.com/hackra76/klipper-mcu-automatic-update-script.git)
+git clone https://github.com/hackra76/klipper-mcu-automatic-update-script.git
 cd klipper-mcu-automatic-update-script
 Make the script executable:
 
