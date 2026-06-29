@@ -8,6 +8,16 @@ KLIPPER_DIR="${HOME}/klipper"
 KLIPPER_SERVICE="klipper"
 # --------------------------
 
+# Safety Confirmation
+echo "⚠️  WARNING: You are about to flash firmware to your printer's MCU."
+echo "This operation carries a risk of flashing incorrect firmware or bricking your board."
+read -p "Are you sure you want to proceed? (y/N): " confirm
+
+if [[ "$confirm" != [yY] ]]; then
+    echo "❌ Update aborted by user."
+    exit 1
+fi
+
 echo "🔍 Checking MCU connection..."
 if [ ! -e "$MCU_PATH" ]; then
     echo "❌ Error: MCU not found at $MCU_PATH!"
