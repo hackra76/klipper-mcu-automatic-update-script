@@ -1,4 +1,3 @@
-
 # 🚀 Klipper MCU Automatic Update Script
 
 A simple, fast, and automated bash script to compile and flash Klipper firmware to a **BTT SKR V1.4 Turbo** (or similar) microcontroller via a Raspberry Pi. 
@@ -54,6 +53,9 @@ Whenever Klipper releases an update and you need to recompile the firmware for y
 Bash
 ./update-mcu.sh
 Sit back and watch the script handle the stopping, updating, cleaning, compiling, flashing, and restarting automatically!
+
+🛑 Disclaimer
+Use at your own risk. This script interacts directly with your 3D printer's hardware and firmware. While it has been written to be as safe and universal as possible, the author is not responsible for any bricked boards, damaged hardware, failed prints, or other issues that may arise from using this software. Always double-check your .config settings before flashing.
 
 📝 License
 This project is open-source and available under the MIT License. Feel free to modify and adapt it to your specific 3D printer setup.
