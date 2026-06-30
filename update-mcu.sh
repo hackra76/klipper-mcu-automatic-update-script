@@ -5,59 +5,63 @@ MCU_PATH="/dev/serial/by-id/usb-Klipper_lpc1769_12345-if00"
 BOARD_TYPE="btt-skr-turbo-v1.4"
 KLIPPER_DIR="${HOME}/klipper"
 KLIPPER_SERVICE="klipper"
+# Path to moonraker/klipper pipe (standard for most installs)
+KLIPPY_PIPE="${HOME}/printer_data/comms/klippy.serial"
 
-# Simple colors for Mainsail console
+# Colors for Terminal
 YELLOW='\e[1;33m'
 GREEN='\e[1;32m'
 RED='\e[1;31m'
 NC='\e[0m'
+
+# Function to send popups to Mainsail/Fluidd UI
+notify() {
+    echo -e "${YELLOW}UI-NOTIFY: $1${NC}"
+    if [ -p "$KLIPPY_PIPE" ]; then
+        echo "RESPOND MSG=\"$1\"" > "$KLIPPY_PIPE"
+    fi
+}
 # --------------------------
 
-echo -e "${YELLOW}▶ Starting MCU Update Process...${NC}"
+notify "🚀 Starting MCU Update Check..."
 
-cd "$KLIPPER_DIR" || exit
+cd "$KLIPPER_DIR" || { notify "❌ Error: Klipper dir not found"; exit 1; }
 
-# 1. FLASH-SAVER: Check if an update is actually needed
-echo -e "${YELLOW}🔍 Checking for Klipper updates on GitHub...${NC}"
-git fetch
-
+# 1. FLASH-SAVER
+git fetch origin > /dev/null 2>&1
 LOCAL=$(git rev-parse HEAD)
 REMOTE=$(git rev-parse @{u})
 
 if [ "$LOCAL" == "$REMOTE" ]; then
-    echo -e "${GREEN}✅ Klipper source is already current. Skipping build to save MCU flash.${NC}"
+    notify "✅ MCU is already up to date. Flash memory saved!"
     exit 0
 fi
 
-echo -e "${YELLOW}🆕 New version found. Updating source...${NC}"
-git pull
+# 2. UPDATE & COMPILE
+notify "🆕 New version found. Compiling firmware..."
+git pull > /dev/null 2>&1
 
-# 2. FREE THE PORT: Stop Klipper so flash-sdcard.sh can connect
-echo -e "${YELLOW}🛑 Stopping Klipper service to release serial port...${NC}"
+# Stop Klipper to free the serial port
 sudo systemctl stop "$KLIPPER_SERVICE"
 
-# 3. BUILD
-echo -e "${YELLOW}⚙️ Compiling firmware...${NC}"
-make clean
-make -j$(nproc)
-
-if [ ! -f "out/klipper.bin" ]; then
-    echo -e "${RED}❌ Error: Compilation failed!${NC}"
-    sudo systemctl start "$KLIPPER_SERVICE"
-    exit 1
-fi
-
-# 4. FLASH
-echo -e "${YELLOW}⚡ Flashing $BOARD_TYPE via $MCU_PATH...${NC}"
-if ./scripts/flash-sdcard.sh "$MCU_PATH" "$BOARD_TYPE"; then
-    echo -e "${GREEN}🎉 SUCCESS: MCU flashed successfully!${NC}"
+make clean > /dev/null 2>&1
+if make -j$(nproc) > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ Compilation successful!${NC}"
 else
-    echo -e "${RED}❌ Error: Flashing failed! Check if MCU is powered.${NC}"
+    notify "❌ Error: Compilation failed!"
     sudo systemctl start "$KLIPPER_SERVICE"
     exit 1
 fi
 
-# 5. RESTART
-echo -e "${YELLOW}🚀 Restarting Klipper service...${NC}"
+# 3. FLASH
+notify "⚡ Flashing MCU ($BOARD_TYPE)..."
+if ./scripts/flash-sdcard.sh "$MCU_PATH" "$BOARD_TYPE" > /dev/null 2>&1; then
+    notify "🎉 SUCCESS: MCU flashed! Restarting Klipper..."
+else
+    notify "❌ Error: Flashing failed!"
+    sudo systemctl start "$KLIPPER_SERVICE"
+    exit 1
+fi
+
 sudo systemctl start "$KLIPPER_SERVICE"
-echo -e "${GREEN}🏁 Update Complete! Please run FIRMWARE_RESTART in Mainsail.${NC}"
+notify "🏁 Update finished. Run FIRMWARE_RESTART."
