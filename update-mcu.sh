@@ -1,42 +1,42 @@
 #!/bin/bash
-set -e
 
 # --- USER CONFIGURATION ---
-# Update these paths to match your specific setup:
-MCU_PATH="/dev/serial/by-id/your-mcu-path-here"
-BOARD_TYPE="your-board-type-here"
+MCU_PATH="/dev/serial/by-id/usb-Klipper_lpc1769_12345-if00" # Update this!
+BOARD_TYPE="btt-skr-turbo-v1.4"
 KLIPPER_DIR="${HOME}/klipper"
-MOONRAKER_URL="http://127.0.0.1:7125"
 # --------------------------
 
-echo "🔍 Fetching current MCU version..."
-# We use curl to ask Moonraker for the MCU status, and grep to extract just the version string
-CURRENT_VERSION=$(curl -s "${MOONRAKER_URL}/printer/objects/query?mcu" | grep -oP '"mcu_version":\s*"\K[^"]+')
+# 1. Navigate to Klipper directory
+cd "$KLIPPER_DIR" || { echo "❌ Error: Klipper directory not found!"; exit 1; }
 
+# 2. Update Source
 echo "⬇️ Pulling latest Klipper source..."
-cd "$KLIPPER_DIR"
 git pull
 
-# Compile a quick check-build to get the new version string
-echo "⚙️ Compiling a quick check-build..."
-make clean > /dev/null
-make -j$(nproc) > /dev/null
+# 3. Clean and Compile
+echo "⚙️ Cleaning old build files..."
+make clean
 
-echo "🔍 Verifying version..."
-if [ -f "out/compile_time.h" ]; then
-    NEW_VERSION=$(grep -oP '#define VERSION "\K[^"]+' out/compile_time.h)
-    echo "Newly Compiled Version: $NEW_VERSION"
+echo "🛠️ Compiling firmware (using all CPU cores)..."
+make -j$(nproc)
+
+# 4. Verify the build
+if [ -f "out/klipper.bin" ]; then
+    echo "✅ Compilation successful! Found out/klipper.bin"
 else
-    echo "❌ Error: Compilation failed or file 'out/compile_time.h' not found."
+    echo "❌ Error: Compilation failed. 'out/klipper.bin' was not created."
     exit 1
 fi
 
-# Compare the versions
-if [ "$CURRENT_VERSION" == "$NEW_VERSION" ] && [ -n "$CURRENT_VERSION" ]; then
-    echo "✅ Firmware is already up to date ($NEW_VERSION). Skipping flash."
+# 5. Flash the MCU via SD Card method
+echo "⚡ Flashing MCU: $BOARD_TYPE via $MCU_PATH..."
+./scripts/flash-sdcard.sh "$MCU_PATH" "$BOARD_TYPE"
+
+# 6. Final Check
+if [ $? -eq 0 ]; then
+    echo "🎉 Flashing completed successfully!"
+    echo "🏁 You may need to 'FIRMWARE_RESTART' in Klipper now."
 else
-    echo "💾 Version mismatch detected (Current: $CURRENT_VERSION | New: $NEW_VERSION)."
-    echo "🚀 Flashing via SD card..."
-    ./scripts/flash-sdcard.sh "$MCU_PATH" "$BOARD_TYPE"
-    echo "✅ Flash complete!"
+    echo "❌ Error: Flashing failed!"
+    exit 1
 fi
