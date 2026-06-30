@@ -1,97 +1,115 @@
+This is the complete, professional `README.md` for your repository. It covers the new "Flash-Saver" logic, the `visudo` requirements for UI integration, and the necessary Moonraker/Mainsail configurations.
+
+***
+
 # 🚀 Klipper MCU Automatic Update Script
 
-A simple, fast, and automated bash script to compile and flash Klipper firmware to a **BTT SKR V1.4 Turbo** (or similar) microcontroller via a Raspberry Pi.
+An automated bash script to compile and flash Klipper firmware to microcontrollers (designed for BTT SKR V1.4 Turbo and similar) using the **SD Card flashing method**.
 
-Designed to be universal, this script automatically detects your CPU cores for maximum compilation speed and pulls the latest Klipper updates before building.
+This script is specifically optimized to be triggered directly from the **Mainsail/Fluidd UI**, allowing for one-click firmware updates without ever opening a terminal.
 
-## 🌟 Features
+---
 
-- **🧠 Smart Flashing:** Queries Moonraker for the currently running MCU firmware version and compares it to the newly compiled build. If they match, it skips flashing to preserve your board's flash memory!
-- **🌐 Web UI Integration:** Easily trigger the update process directly from Mainsail or Fluidd.
-- **🔄 Auto-Update:** Runs `git pull` to ensure you are compiling the freshest Klipper source.
-- **🛡️ Safety First:** Verifies your `.config` file exists and stops the Klipper service before proceeding.
-- **🧹 Clean Build:** Removes old compiled files to prevent conflicts (`make clean`).
-- **⚡ Fast Compilation:** Utilizes multiple CPU cores (`make -j$(nproc)`) for rapid building.
+## 🌟 Key Features
 
-## ⚠️ Prerequisites
+*   **💾 Flash-Saver Logic:** Compares your local Klipper version with the official GitHub repository. If no updates are found, the script exits immediately to avoid unnecessary wear on your MCU's flash memory.
+*   **⚡ Fast Compilation:** Automatically detects and utilizes all available CPU cores (`make -j$(nproc)`).
+*   **🛠️ UI Integration:** Designed to run via `gcode_shell_command` without hanging on password prompts.
+*   **🛡️ Safety First:** Automatically stops the Klipper service to release the serial port for flashing and restarts it upon completion.
+*   **🧹 Clean Builds:** Performs `make clean` to ensure no stale objects cause compilation errors.
 
-Before running this script for the first time, you **must** generate a `.config` file for your specific microcontroller.
+---
 
-1. SSH into your Raspberry Pi.
-2. Navigate to your Klipper directory:
-   ```bash
-   cd ~/klipper
+## ⚙️ Installation & Setup
+
+### 1. Clone the repository
+SSH into your Raspberry Pi and run:
+```bash
+cd ~
+git clone https://github.com/hackra76/klipper-mcu-automatic-update-script.git
+cd klipper-mcu-automatic-update-script
+chmod +x update-mcu.sh
+```
+
+### 2. Configure the Script
+Open the script and update your specific MCU path and board type:
+```bash
+nano update-mcu.sh
+```
+Adjust the top block:
+```bash
+MCU_PATH="/dev/serial/by-id/usb-Klipper_lpc1769_...-if00"
+BOARD_TYPE="btt-skr-turbo-v1.4"
+```
+
+### 3. Configure Sudo Permissions (Crucial for UI)
+To allow Mainsail to stop/start the Klipper service without asking for a password, you must edit the `sudoers` file:
+1. Run: `sudo visudo`
+2. Scroll to the bottom and add this line (replace `pi` with your username if different):
+   ```text
+   pi ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop klipper, /usr/bin/systemctl start klipper
    ```
-3. Open the configuration menu:
-   ```bash
-   make menuconfig
-   ```
-4. Set the correct architecture and parameters for your board (e.g., `lpc1769` for BTT SKR V1.4 Turbo). Save and exit.
+3. Save and exit (**Ctrl+O**, **Enter**, **Ctrl+X**).
 
-## ⚙️ Installation & Configuration (Command Line)
+---
 
-1. **Clone the repository:**
-   ```bash
-   cd ~
-   git clone https://github.com/hackra76/klipper-mcu-automatic-update-script.git
-   cd klipper-mcu-automatic-update-script
-   ```
+## 🖥️ Mainsail / Moonraker Integration
 
-2. **Make the script executable:**
-   ```bash
-   chmod +x update-mcu.sh
-   ```
+### 1. Enable Shell Commands
+Ensure you have the `gcode_shell_command` extension installed (e.g., via [KIAUH](https://github.com/dw-0/kiauh)).
 
-3. **Configure your specific paths:**
-   Open `update-mcu.sh` in a text editor (like `nano`) and adjust the `USER CONFIGURATION` block at the very top of the file:
+### 2. Update `printer.cfg`
+Add the following to your configuration to create the update button:
 
-   ```bash
-   # --- USER CONFIGURATION ---
-   MCU_PATH="/dev/serial/by-id/usb-Klipper_lpc1769_12345-if00" # UPDATE THIS
-   BOARD_TYPE="btt-skr-turbo-v1.4"                             # UPDATE THIS IF NEEDED
-   KLIPPER_DIR="${HOME}/klipper"                               # Change if you use a different path
-   KLIPPER_SERVICE="klipper"                                   # Change if you run multiple instances
-   MOONRAKER_URL="http://127.0.0.1:7125"                       # Default Moonraker API address
-   # --------------------------
-   ```
+```gcode
+[gcode_shell_command update_mcu]
+command: /home/pi/klipper-mcu-automatic-update-script/update-mcu.sh
+timeout: 600.0
+verbose: True
 
-## 🖥️ Mainsail / Fluidd UI Integration
+[gcode_macro UPDATE_MCU_FIRMWARE]
+description: Compiles and flashes the MCU if an update is available.
+gcode:
+    RUN_SHELL_COMMAND CMD=update_mcu
+```
 
-You can trigger this script directly from your web interface using a macro. 
+### 3. Update `moonraker.conf` (Optional - for Updates)
+To see update notifications for this script in your dashboard:
+```ini
+[update_manager klipper-mcu-update]
+type: git_repo
+path: ~/klipper-mcu-automatic-update-script
+origin: https://github.com/hackra76/klipper-mcu-automatic-update-script.git
+managed_services: klipper
+```
 
-**Requirements:** You must have the [G-Code Shell Command Extension](https://github.com/th33xitus/kiauh/blob/master/docs/gcode_shell_command.md) installed (easily done via KIAUH).
-
-1. Open your `printer.cfg` (or `macros.cfg`) in the Mainsail/Fluidd web editor.
-2. Add the following configuration block. **Make sure the `command:` path exactly matches where your script is located** (e.g., `/home/rado/update_mcu.sh`):
-
-   ```ini
-   [gcode_shell_command update_mcu]
-   command: /home/rado/update_mcu.sh
-   timeout: 300.0
-   verbose: True
-
-   [gcode_macro UPDATE_MCU_FIRMWARE]
-   description: Triggers the automatic MCU firmware update script
-   gcode:
-       {action_respond_info("Starting MCU firmware update... Please wait.")}
-       RUN_SHELL_COMMAND CMD=update_mcu
-   ```
-3. Click **SAVE & RESTART**.
-4. You will now have a new macro button named `UPDATE_MCU_FIRMWARE` in your dashboard!
+---
 
 ## 🚀 Usage
 
-You can run the update in two ways:
-1. Click the **UPDATE_MCU_FIRMWARE** button in Mainsail/Fluidd.
-2. Or run it directly from the terminal: `./update-mcu.sh`
+1.  Navigate to your Mainsail/Fluidd dashboard.
+2.  Click the **UPDATE_MCU_FIRMWARE** macro button.
+3.  Monitor the console:
+    *   If Klipper is up to date, the script stops in seconds.
+    *   If a new version exists, it will compile and flash automatically.
+4.  Once finished, run `FIRMWARE_RESTART`.
 
-### ⚠️ The "Menuconfig" Trap
-Klipper version strings are based on Git commit hashes. If you change your hardware settings using `make menuconfig` (e.g., changing stepper drivers), but Klipper hasn't released a new software update, the version string will not change. The script will assume everything is up-to-date and skip the flash. **If you manually change your `.config` settings, you must flash the board manually once.**
+---
+
+## ⚠️ Prerequisites
+Before running for the first time, you **must** have a valid `.config` file generated. 
+```bash
+cd ~/klipper
+make menuconfig
+# Select your board settings, Save and Exit.
+```
+
+---
 
 ## 🛑 Disclaimer
+**Use at your own risk.** This script interacts directly with firmware and hardware. The author is not responsible for any damage, bricked boards, or failed prints. Always verify your `make menuconfig` settings before flashing.
 
-**Use at your own risk.** This script interacts directly with your 3D printer's hardware and firmware. While it has been written to be as safe and universal as possible, the author is not responsible for any bricked boards, damaged hardware, failed prints, or other issues that may arise from using this software. Always double-check your `.config` settings before flashing.
+---
 
 ## 📝 License
-
-This project is open-source and available under the MIT License. Feel free to modify and adapt it to your specific 3D printer setup.
+This project is open-source under the [MIT License](LICENSE). Feel free to adapt it for your printer.
