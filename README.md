@@ -1,5 +1,3 @@
-This is the complete, professional `README.md` for your repository. It covers the new "Flash-Saver" logic, the `visudo` requirements for UI integration, and the necessary Moonraker/Mainsail configurations.
-
 ***
 
 # 🚀 Klipper MCU Automatic Update Script
