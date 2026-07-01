@@ -2,16 +2,23 @@
 USER=$(id -un)
 USER_HOME=$(eval echo "~$USER")
 SCRIPT_DIR="$USER_HOME/klipper-mcu-automatic-update-script"
+EXT_DEST="$USER_HOME/klipper/klippy/extras/gcode_shell_command.py"
 
 echo "🛠️ Starting Professional Setup..."
 
-# 1. Install Klipper G-Code Shell Command extension (The standard way)
-echo "📦 Installing G-Code Shell Command extension..."
-wget https://raw.githubusercontent.com/dw-0/kiauh/master/resources/gcode_shell_command.py -P "$USER_HOME/klipper/klippy/extras/"
-echo "✅ Extension installed to Klipper."
+# 1. Install Klipper G-Code Shell Command extension
+echo "📦 Downloading G-Code Shell Command extension..."
+# Using the verified th33xitus/kiauh master link
+wget -q --show-progress https://raw.githubusercontent.com/th33xitus/kiauh/master/resources/gcode_shell_command.py -O "$EXT_DEST"
+
+if [ -f "$EXT_DEST" ]; then
+    echo "✅ Extension successfully installed to Klipper."
+else
+    echo "❌ ERROR: Download failed. Please check your internet connection and try again."
+    exit 1
+fi
 
 # 2. Create a dedicated Systemd Service for the update
-# This allows the update to keep running even when Klipper is stopped.
 echo "⚙️ Creating Systemd service..."
 sudo bash -c "cat <<EOF > /etc/systemd/system/klipper-mcu-update.service
 [Unit]
@@ -38,4 +45,4 @@ EOF"
 sudo chmod 0440 "$SUDO_FILE"
 
 chmod +x "$SCRIPT_DIR/update-mcu.sh"
-echo "✅ Setup finished. REBOOT your Pi now."
+echo "✅ Setup finished. Please REBOOT your Pi now."
