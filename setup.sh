@@ -5,9 +5,9 @@ SCRIPT_DIR="$USER_HOME/klipper-mcu-automatic-update-script"
 EXT_DEST="$USER_HOME/klipper/klippy/extras/gcode_shell_command.py"
 SUDO_FILE="/etc/sudoers.d/klipper_update_$USER"
 
-echo "🛠️ Starting Professional Setup for Klipper MCU Update..."
+echo "🛠️ Starting Final Setup..."
 
-# 1. Install Klipper extension (Safe version)
+# 1. Install Klipper extension (Multi-instance safe)
 cat << 'EOF' > "$EXT_DEST"
 import os, subprocess, logging, shlex
 class GCodeShellCommand:
@@ -52,4 +52,4 @@ EOF"
 sudo chmod 0440 "$SUDO_FILE"
 
 chmod +x "$SCRIPT_DIR/update-mcu.sh"
-echo "✅ Setup finished. REBOOT your Pi."
+echo "✅ Setup finished. PLEASE REBOOT."
