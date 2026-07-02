@@ -2,13 +2,12 @@
 USER_NAME="rado"
 USER_HOME="/home/$USER_NAME"
 SCRIPT_DIR="$USER_HOME/klipper-mcu-automatic-update-script"
-EXT_DEST="$USER_HOME/klipper/klippy/extras/gcode_shell_command.py"
 SUDO_FILE="/etc/sudoers.d/klipper_update_$USER_NAME"
 
-echo "🛠️ Starting Professional Setup for Klipper MCU Update..."
+echo "🛠️ Performing System Setup..."
 
-# 1. Install Klipper extension (Safe version)
-cat << 'EOF' > "$EXT_DEST"
+# 1. Install Klipper extension
+cat << 'EOF' > "$USER_HOME/klipper/klippy/extras/gcode_shell_command.py"
 import os, subprocess, logging, shlex
 class GCodeShellCommand:
     def __init__(self, config):
@@ -18,8 +17,7 @@ class GCodeShellCommand:
         self.command = config.get('command')
         self.timeout = config.getfloat('timeout', 2.0)
         self.verbose = config.getboolean('verbose', True)
-        try:
-            self.gcode.register_command('RUN_SHELL_COMMAND', self.cmd_RUN_SHELL_COMMAND)
+        try: self.gcode.register_command('RUN_SHELL_COMMAND', self.cmd_RUN_SHELL_COMMAND)
         except Exception: pass
     def cmd_RUN_SHELL_COMMAND(self, gcmd):
         command = gcmd.get('CMD')
@@ -31,9 +29,8 @@ class GCodeShellCommand:
         except Exception as e: self.gcode.respond_info("Error: " + str(e))
 def load_config_prefix(config): return GCodeShellCommand(config)
 EOF
-chmod 644 "$EXT_DEST"
 
-# 2. Create Systemd Service
+# 2. Background Service
 sudo bash -c "cat <<EOF > /etc/systemd/system/klipper-mcu-update.service
 [Unit]
 Description=Klipper MCU Update Service
@@ -44,20 +41,17 @@ Type=oneshot
 User=$USER_NAME
 WorkingDirectory=$USER_HOME/klipper
 ExecStart=/bin/bash $SCRIPT_DIR/update-mcu.sh
-StandardOutput=append:$USER_HOME/printer_data/logs/mcu_update.log
-StandardError=append:$USER_HOME/printer_data/logs/mcu_update.log
 EOF"
 
-# 3. Setup Sudoers (Passwordless service control)
+# 3. Sudoers (Bulletproof)
 sudo bash -c "cat <<EOF > $SUDO_FILE
 $USER_NAME ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop klipper, /usr/bin/systemctl start klipper, /usr/bin/systemctl start --no-block klipper-mcu-update.service
 EOF"
 sudo chmod 0440 "$SUDO_FILE"
 
-# 4. Fix permissions on existing log (if any)
-if [ -f "$USER_HOME/printer_data/logs/mcu_update.log" ]; then
-    sudo chown $USER_NAME:$USER_NAME "$USER_HOME/printer_data/logs/mcu_update.log"
-fi
-
+# 4. Permissions
+sudo chown $USER_NAME:$USER_NAME "$USER_HOME/printer_data/logs/mcu_update.log" 2>/dev/null
 chmod +x "$SCRIPT_DIR/update-mcu.sh"
-echo "✅ Setup finished. PLEASE REBOOT."
+
+sudo systemctl daemon-reload
+echo "✅ Setup finished. REBOOT now."
